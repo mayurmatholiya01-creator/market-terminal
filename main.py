@@ -9,8 +9,6 @@ from datetime import datetime
 from typing import List
 import uvicorn
 from dotenv import load_dotenv
-import pyotp
-from smartapi import SmartConnect
 
 load_dotenv()
 
@@ -23,84 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
-# Angel One API Integration
-class AngelOneAPI:
-    def __init__(self):
-        self.api_key = os.getenv('ANGEL_API_KEY')
-        self.api_secret = os.getenv('ANGEL_API_SECRET') 
-        self.client_code = os.getenv('ANGEL_CLIENT_CODE')
-        self.password = os.getenv('ANGEL_PASSWORD')
-        self.totp_secret = os.getenv('ANGEL_TOTP_SECRET')
-        
-        if self.api_key:
-            self.smart_api = SmartConnect(api_key=self.api_key)
-            self.access_token = None
-        else:
-            self.smart_api = None
-        
-    def generate_session(self):
-        if not self.smart_api:
-            return False
-            
-        try:
-            totp = pyotp.TOTP(self.totp_secret)
-            totp_code = totp.now()
-            
-            data = self.smart_api.generateSession(
-                clientCode=self.client_code,
-                password=self.password,
-                totp=totp_code
-            )
-            
-            if data['status']:
-                self.access_token = data['data']['jwtToken']
-                print("✅ Angel One session created successfully")
-                return True
-            else:
-                print(f"❌ Session failed: {data['message']}")
-                return False
-        except Exception as e:
-            print(f"❌ Error: {str(e)}")
-            return False
-    
-    def get_ltp(self, symbol):
-        if not self.smart_api or not self.access_token:
-            return None
-            
-        try:
-            # Common symbol tokens (you can expand this)
-            symbol_tokens = {
-                "RELIANCE": "2885",
-                "TCS": "11536", 
-                "INFY": "1594",
-                "HDFCBANK": "1333",
-                "ITC": "424",
-                "SBIN": "3045",
-                "BHARTIARTL": "10604",
-                "ASIANPAINT": "236",
-                "MARUTI": "10999",
-                "KOTAKBANK": "492"
-            }
-            
-            token = symbol_tokens.get(symbol, "26009")  # Default token
-            
-            data = self.smart_api.ltpData("NSE", symbol, token)
-            
-            if data['status']:
-                return {
-                    'symbol': symbol,
-                    'ltp': data['data']['ltp'],
-                    'change': data['data'].get('change', 0),
-                    'changePercent': data['data'].get('pChange', 0)
-                }
-            return None
-        except Exception as e:
-            print(f"❌ Price fetch error for {symbol}: {str(e)}")
-            return None
-
-# Initialize Angel One API
-angel_api = AngelOneAPI()
 
 # Data Models
 class WatchlistCreate(BaseModel):
@@ -138,7 +58,7 @@ def init_db():
     cursor.execute("INSERT OR IGNORE INTO watchlists (id, name) VALUES (3, 'Value Picks')")
     
     # Add some default stocks
-    default_stocks = ['RELIANCE', 'TCS', 'INFY', 'EMS', 'BIKAJI']
+    default_stocks = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ITC']
     for stock in default_stocks:
         cursor.execute(
             "INSERT OR IGNORE INTO watchlist_stocks (watchlist_id, symbol) VALUES (1, ?)",
@@ -151,8 +71,6 @@ def init_db():
 @app.on_event("startup")
 async def startup_event():
     init_db()
-    if angel_api.api_key:
-        angel_api.generate_session()
 
 @app.get("/api/watchlists")
 async def get_watchlists():
@@ -249,69 +167,39 @@ async def get_watchlist_stocks(watchlist_id: int):
     stocks = []
     for row in cursor.fetchall():
         symbol = row[0]
+        # Enhanced mock data with realistic values
+        base_price = 1000 + hash(symbol) % 3000
+        change = ((hash(symbol) % 200) - 100)
+        change_percent = change / base_price * 100
         
-        # Try to get real data from Angel One
-        real_data = angel_api.get_ltp(symbol) if angel_api else None
-        
-        if real_data:
-            stocks.append({
-                'symbol': symbol,
-                'ltp': real_data['ltp'],
-                'change': real_data['change'],
-                'changePercent': real_data['changePercent'],
-                'volume': 0,
-                'sector': 'Live Data'
-            })
-        else:
-            # Fallback to mock data
-            stocks.append({
-                'symbol': symbol,
-                'ltp': 1000 + hash(symbol) % 2000,
-                'change': (hash(symbol) % 200) - 100,
-                'changePercent': ((hash(symbol) % 200) - 100) / 10,
-                'volume': (hash(symbol) % 1000000) + 100000,
-                'sector': 'Technology'
-            })
+        stocks.append({
+            'symbol': symbol,
+            'ltp': base_price + change,
+            'change': change,
+            'changePercent': round(change_percent, 2),
+            'volume': (hash(symbol) % 1000000) + 100000,
+            'sector': 'Technology'
+        })
     
     conn.close()
     return {"stocks": stocks}
 
 @app.get("/api/market/indices")
 async def get_market_indices():
-    # Try to get real indices data
-    indices_data = []
-    
-    if angel_api and angel_api.access_token:
-        try:
-            # Get NIFTY 50 data
-            nifty_data = angel_api.smart_api.ltpData("NSE", "NIFTY", "99926000")
-            if nifty_data['status']:
-                indices_data.append({
-                    "name": "NIFTY 50",
-                    "value": nifty_data['data']['ltp'],
-                    "change": nifty_data['data'].get('change', 0),
-                    "changePercent": nifty_data['data'].get('pChange', 0)
-                })
-        except:
-            pass
-    
-    # Fallback to mock data if real data not available
-    if not indices_data:
-        indices_data = [
-            {"name": "NIFTY 50", "value": 19674.25, "change": 156.80, "changePercent": 0.80},
-            {"name": "SENSEX", "value": 66023.69, "change": 525.42, "changePercent": 0.80},
-            {"name": "BANK NIFTY", "value": 44258.75, "change": -125.30, "changePercent": -0.28}
+    return {
+        "indices": [
+            {"name": "NIFTY 50", "value": 25674.25, "change": 156.80, "changePercent": 0.61},
+            {"name": "SENSEX", "value": 84023.69, "change": 525.42, "changePercent": 0.63},
+            {"name": "BANK NIFTY", "value": 54258.75, "change": -125.30, "changePercent": -0.23}
         ]
-    
-    return {"indices": indices_data}
+    }
 
 @app.get("/health")
 async def health_check():
-    angel_status = "Connected" if (angel_api and angel_api.access_token) else "Mock Data"
     return {
         "status": "healthy", 
         "timestamp": datetime.now().isoformat(),
-        "angel_one_status": angel_status
+        "mode": "Enhanced Mock Data"
     }
 
 # Serve static files (frontend)
