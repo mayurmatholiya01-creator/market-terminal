@@ -1,6 +1,6 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-smartapi==1.1.0
+git+https://github.com/angel-one/smartapi-python.git@main#egg=smartapi
 pyotp==2.9.0
 requests==2.31.0
 python-dotenv==1.0.0
