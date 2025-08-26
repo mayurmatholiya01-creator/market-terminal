@@ -19,7 +19,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 class WatchlistCreate(BaseModel):
@@ -136,3 +136,41 @@ async def get_watchlist_stocks(watchlist_id: int):
     
     cursor.execute(
         "SELECT symbol FROM watchlist_stocks WHERE watchlist_id = ? ORDER BY added_at",
+        (watchlist_id,)
+    )
+    
+    stocks = []
+    for row in cursor.fetchall():
+        symbol = row[0]
+        stocks.append({
+            'symbol': symbol,
+            'ltp': 1000 + hash(symbol) % 2000,
+            'change': (hash(symbol) % 200) - 100,
+            'changePercent': ((hash(symbol) % 200) - 100) / 10,
+            'volume': (hash(symbol) % 1000000) + 100000,
+            'sector': 'Technology'
+        })
+    
+    conn.close()
+    return {"stocks": stocks}
+
+@app.get("/api/market/indices")
+async def get_market_indices():
+    return {
+        "indices": [
+            {"name": "NIFTY 50", "value": 19674.25, "change": 156.80, "changePercent": 0.80},
+            {"name": "SENSEX", "value": 66023.69, "change": 525.42, "changePercent": 0.80},
+            {"name": "BANK NIFTY", "value": 44258.75, "change": -125.30, "changePercent": -0.28}
+        ]
+    }
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
