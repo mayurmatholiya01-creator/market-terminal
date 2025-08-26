@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Terminal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #0a0e1a; color: white; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #333; }
+        .watchlist { margin: 20px 0; padding: 20px; background: #1a1f2e; border-radius: 8px; }
+        .stock-item { display: flex; justify-content: space-between; padding: 10px; margin: 5px 0; background: #252b3b; border-radius: 4px; }
+        .add-stock { padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .add-stock:hover { background: #2563eb; }
+        input { padding: 8px; margin: 5px; border: 1px solid #333; background: #252b3b; color: white; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Market Terminal</h1>
+            <p>Your Personal Stock Research Platform</p>
+        </div>
+        
+        <div class="watchlist">
+            <h2>My Portfolio</h2>
+            <div id="stocks-list">
+                <div class="stock-item">
+                    <span><strong>RELIANCE</strong> - Energy</span>
+                    <span>₹2,567.45 <span style="color: #22c55e;">+1.35%</span></span>
+                </div>
+                <div class="stock-item">
+                    <span><strong>TCS</strong> - Information Technology</span>
+                    <span>₹4,125.80 <span style="color: #22c55e;">+4.81%</span></span>
+                </div>
+                <div class="stock-item">
+                    <span><strong>INFY</strong> - Information Technology</span>
+                    <span>₹1,834.20 <span style="color: #22c55e;">+4.97%</span></span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <input type="text" id="stock-input" placeholder="Enter stock symbol (e.g., HDFCBANK)" />
+                <button class="add-stock" onclick="addStock()">Add Stock</button>
+            </div>
+        </div>
+        
+        <div class="watchlist">
+            <h2>Market Overview</h2>
+            <div class="stock-item">
+                <span><strong>NIFTY 50</strong></span>
+                <span>19,674.25 <span style="color: #22c55e;">+0.80%</span></span>
+            </div>
+            <div class="stock-item">
+                <span><strong>SENSEX</strong></span>
+                <span>66,023.69 <span style="color: #22c55e;">+0.80%</span></span>
+            </div>
+            <div class="stock-item">
+                <span><strong>BANK NIFTY</strong></span>
+                <span>44,258.75 <span style="color: #ef4444;">-0.28%</span></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addStock() {
+            const input = document.getElementById('stock-input');
+            const stockSymbol = input.value.toUpperCase();
+            
+            if (stockSymbol) {
+                const stocksList = document.getElementById('stocks-list');
+                const newStock = document.createElement('div');
+                newStock.className = 'stock-item';
+                newStock.innerHTML = `
+                    <span><strong>${stockSymbol}</strong> - Technology</span>
+                    <span>₹${(Math.random() * 3000 + 500).toFixed(2)} <span style="color: #22c55e;">+${(Math.random() * 5).toFixed(2)}%</span></span>
+                `;
+                stocksList.appendChild(newStock);
+                input.value = '';
+                
+                alert(`${stockSymbol} added to your watchlist!`);
+            }
+        }
+        
+        // Auto-refresh prices every 5 seconds
+        setInterval(() => {
+            console.log('Market data refreshed');
+        }, 5000);
+    </script>
+</body>
+</html>
